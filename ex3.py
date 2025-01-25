@@ -53,6 +53,8 @@ class OptimalWizardAgent:
         # יצירת מילון הסתברויות מעבר לכל פעולה
         self.transition_matrices = self.build_transition_matrices_as_dict()
 
+        self.values=self.values() #TODO:complete the values in order to make VI
+
     def get_valid_positions(self):
         """
         מחשב את כל המיקומים המותרים לפי המפה
@@ -292,6 +294,29 @@ class OptimalWizardAgent:
             "death_eaters": {name: data["index"] for name, data in state["death_eaters"].items()}
         }
         key_state_current=tuple(state.items())#transforming the current state to a key for the transition probabilities matrix
+
+
+    def values(self):#TODO: need to continue
+        """
+        computes the expected value if we go to state s with t timestamps to go
+        """
+        values={}
+        t=0
+        for state in self.states:
+            key_state = tuple(
+                state.items())  # transforming the current state to a key for the transition probabilities matrix
+            values[(key_state, t)] =self.Reward(state)
+        for time in range(1,self.turns_to_go):
+            for state in self.states:
+                key_state = tuple(state.items())  # transforming the current state to a key for the transition probabilities matrix
+                values[(key_state,time)]=
+
+    def Reward(self, state):#TODO: need to continue
+        """
+        computes the reward in the current state
+        """
+
+
 
 class WizardAgent:
     def __init__(self, initial):

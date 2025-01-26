@@ -53,7 +53,7 @@ class OptimalWizardAgent:
         # יצירת מילון הסתברויות מעבר לכל פעולה
         self.transition_matrices = self.build_transition_matrices_as_dict()
 
-        self.values=self.values() #TODO:complete the values in order to make VI
+        self.values,self.policy=self.values() #TODO:complete the values in order to make VI
 
     def get_valid_positions(self):
         """
@@ -294,28 +294,74 @@ class OptimalWizardAgent:
             "death_eaters": {name: data["index"] for name, data in state["death_eaters"].items()}
         }
         key_state_current=tuple(state.items())#transforming the current state to a key for the transition probabilities matrix
+        action=self.policy[(key_state_current,self.turns_to_go)]
+        self.turns_to_go-=1
+        return action
 
+    def values(self):
+        """
+        מחשבת את הערך המצופה עבור כל מצב ולכל פרק זמן, וגם שומרת את המדיניות האופטימלית.
+        """
+        values = {}
+        policy = {}
 
-    def values(self):#TODO: need to continue
-        """
-        computes the expected value if we go to state s with t timestamps to go
-        """
-        values={}
-        t=0
+        # אתחול הערכים בזמן האחרון (t=0) לתגמול המיידי
         for state in self.states:
-            key_state = tuple(
-                state.items())  # transforming the current state to a key for the transition probabilities matrix
-            values[(key_state, t)] =self.Reward(state)
-        for time in range(1,self.turns_to_go):
+            key_state = tuple(state.items())
+            values[(key_state, 0)] = self.Reward(state)
+
+        # חישוב הערכים לכל פרק זמן
+        for t in range(1, self.turns_to_go + 1):
             for state in self.states:
-                key_state = tuple(state.items())  # transforming the current state to a key for the transition probabilities matrix
-                values[(key_state,time)]=
+                key_state = tuple(state.items())  # state from
+                action_values = []
 
-    def Reward(self, state):#TODO: need to continue
-        """
-        computes the reward in the current state
-        """
+                # חישוב ערך עבור כל פעולה אפשרית
+                for action in self.actions:
+                    transition_probs = self.transition_matrices[action].get(key_state, {})
+                    expected_value = 0
 
+                    # חישוב הערך המצופה על בסיס הסתברויות מעבר
+                    for state_to, prob in transition_probs.items():
+                        key_state_to = (state_to, t - 1)
+                        if key_state_to in values:
+                            expected_value += prob * values[key_state_to]
+
+                    # התחשבות בפעולת reset
+                    if action == "reset":
+                        expected_value += RESET_REWARD
+                    if action == "move_up"
+                    action_values.append((expected_value, action))
+
+                # בחירת הפעולה הטובה ביותר ושמירת הערך והמדיניות
+                best_action_value, best_action = max(action_values)
+                values[(key_state, t)] = best_action_value + self.Reward(state)
+                policy[(key_state, t)] = best_action
+
+        return values, policy
+
+    def Reward(self, state):
+        """
+        מחשבת את התגמול במצב הנוכחי
+        :param state: מצב נתון
+        :return: ערך התגמול
+        """
+        reward = 0
+
+        # תגמול על השמדת הורקרוקסים
+        for wizard, wizard_pos in state["wizards"].items():
+            for horcrux, horcrux_pos in state["horcruxes"].items():
+                if wizard_pos == horcrux_pos:#we assume that if we can destroy horxrox we will do it!
+                    reward += DESTROY_HORCRUX_REWARD
+
+        # עונש על מפגש עם אוכלי מוות
+        for wizard, wizard_pos in state["wizards"].items():
+            for death_eater, death_eater_index in state["death_eaters"].items():
+                death_eater_pos = self.death_eaters[death_eater]["path"][death_eater_index]
+                if wizard_pos == death_eater_pos:
+                    reward += DEATH_EATER_CATCH_REWARD
+
+        return reward
 
 
 class WizardAgent:

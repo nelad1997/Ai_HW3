@@ -1,15 +1,17 @@
 import random
 import networkx as nx
-
-
 from ex3 import ids, OptimalWizardAgent, WizardAgent
-from inputs import inputs
+from inputs import inputs as original_inputs
+from inputs_op_tests import inputs as op_inputs
+from inputs_not_op_tests import inputs as not_op_inputs
 import logging
 import time
 from copy import deepcopy
-import inputs_op_tests
 from itertools import product
+from colorama import Fore
+import csv
 
+random.seed(42)
 
 RESET_PENALTY = 2
 DESTROY_HORCRUX_REWARD = 2
@@ -56,7 +58,7 @@ class WizardStochasticProblem:
             raise TimeoutError
         self.score = 0
 
-    def run_round(self):
+    def run_round_original(self):
         """
         run a round of the game
         """
@@ -73,6 +75,32 @@ class WizardStochasticProblem:
                 raise RuntimeError
             self.result(action)
         self.terminate_execution()
+
+    def run_round(self):
+        """
+        run a round of the game
+        """
+        try:
+            while self.state[TURNS_TO_GO] > 0:
+                start = time.perf_counter()
+                action = self.agent.act(deepcopy(self.state))
+                end = time.perf_counter()
+                if end - start > TURN_TIME_LIMIT:
+                    logging.critical(f"timed out on an action")
+                    raise TimeoutError
+                if not self.is_action_legal(action):
+                    logging.critical(f"You returned an illegal action!")
+                    print(action)
+                    raise RuntimeError
+
+                self.result(action)
+            # אם יוצאים מהלולאה כי TURNS_TO_GO == 0
+            self.terminate_execution()  # זה יעלה EndOfGame
+        except EndOfGame:
+            pass  # בולמים את החריגה במקום לעצור את כל התוכנית
+
+        # בסוף, מחזירים את הניקוד שנצבר
+        return self.score
 
     def is_action_legal(self, action):
         """
@@ -253,23 +281,81 @@ class WizardStochasticProblem:
         return g
 
 
-def main():
+def main_one_iteration():
     print(f"IDS: {ids}")
-    for i in range(50):
-        for an_input in inputs:
+
+    i = 0
+    print(Fore.BLUE + f"Not Optimal Inputs:")
+    for an_input in not_op_inputs:
+        print(Fore.BLUE + f"Input {i + 1}:")
+        try:
+            my_problem = WizardStochasticProblem(an_input)
+            my_problem.run_round()
+        except EndOfGame:
+            continue
+        i += 1
+
+    i = 0
+    print(Fore.GREEN + f"Optimal Inputs:")
+    for an_input in op_inputs:
+        print(Fore.GREEN + f"Input {i + 1}:")
+        try:
+            print(an_input)
+            my_problem = WizardStochasticProblem(an_input)
+            my_problem.run_round()
+        except EndOfGame:
+            continue
+        i += 1
+
+
+
+
+def calculate_average_scores_50():
+    inputs = not_op_inputs + op_inputs
+
+    # יצירת רשימת ניקוד באורך len(inputs), מאותחלת ל-0
+    score = [0] * len(inputs)
+
+    # נחזור על התהליך 50 פעמים
+    num_iterations = 50
+
+    for iteration in range(num_iterations):
+        print(Fore.YELLOW + f"\nIteration: {iteration + 1}")
+
+        # נעשה enumerate על inputs
+        for i, an_input in enumerate(inputs):
             try:
-                print(an_input)
                 my_problem = WizardStochasticProblem(an_input)
-                my_problem.run_round()
+                returned_score = my_problem.run_round()  # נניח שהפונקציה מחזירה את הניקוד
+                score[i] += returned_score
             except EndOfGame:
+                # אם המשחק מסתיים מוקדם
                 continue
-        for an_input in []: #additional_inputs:
-            try:
-                my_problem = WizardStochasticProblem(an_input)
-                my_problem.run_round()
-            except EndOfGame:
-                continue
+
+    # חישוב ממוצע הניקוד לכל input
+    average_scores = [s / num_iterations for s in score]
+
+    # שמירת התוצאות ל-CSV
+    with open("average_scores_with_turns.csv", "w", newline="") as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow(["Input Type", "Input Index", "Turns to Go", "Average Score"])
+
+        for i, avg_score in enumerate(average_scores):
+            input_type = "Optimal" if inputs[i]["optimal"] else "Not Optimal"
+            turns_to_go = inputs[i]["turns_to_go"]
+            csv_writer.writerow([input_type, i + 1, turns_to_go, avg_score])
+
+    # הדפסת התוצאות הסופיות
+    print(Fore.RED + "\nFinal results:")
+    for i, avg in enumerate(average_scores):
+        input_type = "Optimal" if inputs[i]["optimal"] else "Not Optimal"
+        turns_to_go = inputs[i]["turns_to_go"]
+        if not inputs[i]["optimal"]:
+            print(Fore.BLUE + f"Not Optimal Input {i + 1} (Turns to Go: {turns_to_go}) => Average Score: {avg}")
+        else:
+            print(Fore.GREEN + f"Optimal Input {i + 1} (Turns to Go: {turns_to_go}) => Average Score: {avg}")
 
 
 if __name__ == '__main__':
-    main()
+    calculate_average_scores_50()
+    #main_one_iteration()

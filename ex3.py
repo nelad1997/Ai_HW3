@@ -681,7 +681,7 @@ class WizardAgent:
         all_combinations = itertools.product(*all_wizards_actions)
         return all_combinations
 
-    def Reward(self, state, actions, t):  # It is also depends on the action we want to make from state s abd t
+    def Reward(self, state, actions, t):  # It is also depends on the action we want to make from state s and t
         """
         returns the reward for the given actions and the current state
         actions is a vector of action for each one of the wizards from the current state

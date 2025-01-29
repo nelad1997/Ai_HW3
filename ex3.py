@@ -6,7 +6,7 @@ import time
 RESET_REWARD = -2
 DESTROY_HORCRUX_REWARD = 2
 DEATH_EATER_CATCH_REWARD = -1
-INIT_TIME_LIMIT = 200
+INIT_TIME_LIMIT = 270
 
 class OptimalWizardAgent:
     def __init__(self, initial):
@@ -409,7 +409,7 @@ class OptimalWizardAgent:
                 best_action = None
 
                 # קבלת פעולות אפשריות מהקאש
-                all_possible_actions = actions_cache[reduced_state]
+                all_possible_actions = list(self.actions_cache[reduced_state])
                 all_possible_actions.append("reset")
                 all_possible_actions.append("terminate")
 
@@ -457,7 +457,7 @@ class WizardAgent(OptimalWizardAgent):
                 self.turns_to_go -= 1
                 return "reset"
 
-        elif self.t >= self.turns_to_go:
+        if self.t >= self.turns_to_go:
             # משתמשים במדיניות האופטימלית שחושבה
             k = self.turns_to_go
             chosen_action = self.policy_regular.get((key_state, k))
@@ -515,7 +515,7 @@ class WizardAgent(OptimalWizardAgent):
                 best_action = None
 
                 # קבלת פעולות אפשריות מהקאש
-                all_possible_actions = self.cache_all_possible_actions()[reduced_state]
+                all_possible_actions = list(self.actions_cache[reduced_state])
                 all_possible_actions.append("reset")
                 all_possible_actions.append("terminate")
 

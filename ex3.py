@@ -420,8 +420,8 @@ class WizardAgent():
         self.start_time = time.perf_counter()
         self.turns_to_go = initial["turns_to_go"]
         self.grid = initial["map"]
-        self.m = len(self.grid)         # number of rows
-        self.n = len(self.grid[0])      # number of columns
+        self.m = len(self.grid) # number of rows
+        self.n = len(self.grid[0]) # number of columns
         self.initial_state=initial
         self.wizards = initial["wizards"]
         self.wizard_names = sorted(self.wizards.keys())
@@ -452,7 +452,7 @@ class WizardAgent():
         self.policy = [dict() for i in range(self.turns_to_go + 1)]
 
         # Build the set of reachable states by BFS
-        self.build_reachable_states_bfs(initial)
+        #self.build_reachable_states_bfs(initial)
 
     def neighbors_passible(self):#utility function
         directions = [(-1, 0), (0, 1), (0, -1), (1, 0)]
@@ -481,8 +481,8 @@ class WizardAgent():
 
         state_reduced = self.reduce_state(state)
 
-        # If no policy entry use heuristic
-        if time >= len(self.policy) or state_reduced not in self.policy[time]:
+        # If no policy use heuristic
+        if state_reduced not in self.policy[time]:
             return self.heuristic(state)
 
         return self.policy[time][state_reduced]
@@ -807,7 +807,7 @@ class WizardAgent():
 
     def compute_transition_probabilities(self, state, actions):
 
-        (wizard_locs, death_eaters_idxs, h0crux_locs, t) = state
+        (wizard_locs, death_eaters_idxs, hocrux_locs, t) = state
         if t <= 0:
             return {state: 1.0}
 
@@ -819,7 +819,7 @@ class WizardAgent():
             return {next_state: 1.0}
 
         if actions == TERMINATE_ACTION:
-            next_state = (wizard_locs, death_eaters_idxs, h0crux_locs, 0)
+            next_state = (wizard_locs, death_eaters_idxs, hocrux_locs, 0)
             return {next_state: 1.0}
 
 
@@ -837,13 +837,13 @@ class WizardAgent():
 
         all_death_eater_options = []
         for i, de_nm in enumerate(self.death_eater_names):
-            all_death_eater_options.append(self.get_deaeth_eater_p(de_nm, death_eaters_idxs[i]))
+            all_death_eater_options.append(self.get_death_eater_transition_probabilities(de_nm, death_eaters_idxs[i]))
 
         # horcrux transitions
 
         all_hocrux_options = []
         for i, h_nm in enumerate(self.h_names):
-            all_hocrux_options.append(self.get_hocrux_p(h_nm, h0crux_locs[i]))
+            all_hocrux_options.append(self.get_horcrux_transition_probabilities(h_nm, hocrux_locs[i]))
 
         next_states = {}
 
@@ -874,33 +874,57 @@ class WizardAgent():
 
         return next_states
 
-    def get_hocrux_p(self,hocrux_name, current_loc):
-        pc = self.horcruxes[hocrux_name]["prob_change_location"]
-        locs = self.h_possible_loc_per_h[hocrux_name]
-        # stay with prob (1 - pc), otherwise uniform among locs
-        # so total for move among locs is pc / len(locs)
-        res = []
-        stay_prob = 1 - pc
-        move_p = pc / len(locs)
-        for loc_ in locs:
-            p = move_p
-            if loc_ == current_loc:
-                p += stay_prob
-            if p > 0:
-                res.append((loc_, p))
-        return res
+    def get_horcrux_transition_probabilities(self, horcrux_name, current_location):
+        """
+        Calculates the transition probabilities for a given horcrux based on its probability of changing location.
 
-    def get_deaeth_eater_p(self,deathEater_Nmae, idx):
-        path = self.death_eater_paths[deathEater_Nmae]
-        len_path_deathEater = len(path)
-        if len_path_deathEater == 1:
-            return [(idx, 1.0)]
-        if idx == 0:
-            return [(0, 0.5), (1, 0.5)]
-        elif idx == len_path_deathEater - 1:
-            return [(len_path_deathEater - 1, 0.5), (len_path_deathEater - 2, 0.5)]
+        :param horcrux_name: The name of the horcrux.
+        :param current_location: The current location of the horcrux.
+        :return: A list of tuples representing possible new locations and their corresponding probabilities.
+        """
+        probability_change_location = self.horcruxes[horcrux_name]["prob_change_location"]
+        possible_locations = self.h_possible_loc_per_h[horcrux_name]
+
+        transition_probabilities = []
+        stay_probability = 1 - probability_change_location
+        move_probability = probability_change_location / len(possible_locations)
+
+        for location in possible_locations:
+            probability = move_probability
+            if location == current_location:
+                probability += stay_probability  # Add stay probability if it's the current location
+            if probability > 0:
+                transition_probabilities.append((location, probability))
+
+        return transition_probabilities
+
+    def get_death_eater_transition_probabilities(self, death_eater_name, current_index):
+        """
+        Calculates the transition probabilities for a death eater based on its current index along its path.
+
+        :param death_eater_name: The name of the death eater.
+        :param current_index: The current index of the death eater along its path.
+        :return: A list of tuples representing possible new indices and their corresponding probabilities.
+        """
+        death_eater_path = self.death_eater_paths[death_eater_name]
+        path_length = len(death_eater_path)
+
+        if path_length == 1:
+            return [(current_index, 1.0)]  # Only one position available, with probability 1
+
+        if current_index == 0:
+            return [(0, 0.5), (1, 0.5)]  # If at the start, can stay or move forward
+
+        elif current_index == path_length - 1:
+            return [(path_length - 1, 0.5), (path_length - 2, 0.5)]  # If at the end, can stay or move backward
+
         else:
-            return [(idx - 1, 1 / 3), (idx, 1 / 3), (idx + 1, 1 / 3)]
+            # In the middle, can move left, stay, or move right with equal probability
+            return [
+                (current_index - 1, 1 / 3),
+                (current_index, 1 / 3),
+                (current_index + 1, 1 / 3)
+            ]
 
     def calculate_reward(self, actions, next_state):
         """

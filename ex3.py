@@ -1,5 +1,4 @@
 
-ids = ["319000725", "207036211"]
 
 import collections
 import itertools
